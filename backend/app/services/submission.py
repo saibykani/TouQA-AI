@@ -14,6 +14,7 @@ from __future__ import annotations
 import html
 
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 
 from app.db import utcnow
 from app.integrations.http import IntegrationError, OutcomeUnknownError
@@ -151,6 +152,12 @@ def preview(db: Session, project: Project, draft_ids: list[int], folder_external
     }
 
 
+def _save_progress(op, progress: dict) -> None:
+    """Assign a fresh copy and flag it so in-place mutations of ``progress`` are always persisted."""
+    op.request_summary = dict(progress)
+    flag_modified(op, "request_summary")
+
+
 def _record_local(db: Session, project: Project, draft: TestCaseDraft, payload: dict, created: dict, tc_id: str,
                   base_url: str) -> None:
     tc = db.query(TestCase).filter_by(project_id=project.id, external_id=tc_id).one_or_none()
@@ -219,7 +226,7 @@ def submit_one(db: Session, client, project: Project, draft: TestCaseDraft, payl
                 raise OutcomeUnknownError("Spira did not return a TestCaseId for the created test case.")
             op.external_id = tc_id
             progress["steps_created"] = 0
-            op.request_summary = progress
+            _save_progress(op, progress)
             db.commit()
         done = int(progress.get("steps_created") or 0)
         if progress.get("reconciled") and done == 0:
@@ -229,12 +236,12 @@ def submit_one(db: Session, client, project: Project, draft: TestCaseDraft, payl
             client.add_test_step(pid, int(tc_id), {**step, "TestCaseId": int(tc_id)})
             done += 1
             progress["steps_created"] = done
-            op.request_summary = dict(progress)
+            _save_progress(op, progress)
             db.commit()
         if payload.get("coverage_link") and not progress.get("coverage_linked"):
             client.link_requirement_test_case(pid, payload["coverage_link"]["RequirementId"], int(tc_id))
             progress["coverage_linked"] = True
-            op.request_summary = dict(progress)
+            _save_progress(op, progress)
         op.status, op.error = "succeeded", None
         op.external_url = spira_artifact_url(base_url, pid, "test_case", tc_id)
         _record_local(db, project, draft, payload, {}, tc_id, base_url)
@@ -246,7 +253,7 @@ def submit_one(db: Session, client, project: Project, draft: TestCaseDraft, payl
         return {"draft_id": draft.id, "status": "created", "external_id": tc_id, "url": op.external_url}
     except OutcomeUnknownError as exc:
         op.status, op.error = "unknown", exc.user_message
-        op.request_summary = dict(progress)
+        _save_progress(op, progress)
         draft.status = "failed"
         audit.record(db, action="spira.test_case.create", category="external_write", outcome="failure", user_id=user_id,
                      project_id=project.id, platform="spira", entity_type="test_case_draft", entity_id=draft.id,
@@ -256,7 +263,7 @@ def submit_one(db: Session, client, project: Project, draft: TestCaseDraft, payl
     except IntegrationError as exc:
         op.status = "partial" if tc_id else "failed"
         op.error, op.response_status = exc.user_message, exc.status_code
-        op.request_summary = dict(progress)
+        _save_progress(op, progress)
         draft.status = "failed"
         audit.record(db, action="spira.test_case.create", category="external_write",
                      outcome="partial" if tc_id else "failure", user_id=user_id, project_id=project.id, platform="spira",

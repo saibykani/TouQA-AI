@@ -14,7 +14,7 @@ from typing import Any
 
 _MS_DATE = re.compile(r"/Date\((-?\d+)([+-]\d{4})?\)/")
 _TAG = re.compile(r"<[^>]+>")
-_BLOCK = re.compile(r"(?i)</?(p|div|br|li|tr|h[1-6]|ul|ol|table)[^>]*>")
+_BLOCK = re.compile(r"(?i)</(p|div|li|tr|h[1-6]|ul|ol|table)\s*>|<br\s*/?>")
 
 
 def parse_date(value: Any) -> datetime | None:

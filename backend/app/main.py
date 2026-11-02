@@ -20,7 +20,8 @@ def configure_logging() -> None:
     logging.basicConfig(level=s.log_level, format="%(asctime)s %(levelname)s %(name)s %(message)s")
     for h in logging.getLogger().handlers:
         h.addFilter(RedactingFilter())
-    logging.getLogger("httpx").setLevel(logging.WARNING)  # never log request URLs/headers at INFO
+    for name in ("httpx", "httpx2", "httpcore"):
+        logging.getLogger(name).setLevel(logging.WARNING)  # never log request URLs/headers at INFO
 
 
 @asynccontextmanager

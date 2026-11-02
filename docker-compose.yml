@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: touqa
+      POSTGRES_PASSWORD: touqa
+      POSTGRES_DB: touqa
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U touqa"]
+      interval: 5s
+      retries: 10
+  backend:
+    build: ./backend
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+psycopg://touqa:touqa@db:5432/touqa
+    ports: ["8000:8000"]
+    volumes: [uploads:/app/data/uploads]
+    depends_on:
+      db: {condition: service_healthy}
+volumes:
+  pgdata:
+  uploads:
