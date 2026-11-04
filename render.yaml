@@ -1,0 +1,36 @@
+# Render Blueprint: backend API + managed PostgreSQL.
+# Secrets are marked sync:false — Render asks for them in its dashboard; they are never stored in git.
+services:
+  - type: web
+    name: touqa-backend
+    runtime: docker
+    rootDir: backend
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase: { name: touqa-db, property: connectionString }
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: COOKIE_SAMESITE
+        value: lax  # the Vercel frontend proxies /api, so the API is same-origin
+      - key: CORS_ORIGINS
+        sync: false  # e.g. https://touqaai.vercel.app
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: AI_PROVIDER
+        value: anthropic
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DEMO_MODE
+        value: "false"
+databases:
+  - name: touqa-db
+    databaseName: touqa
+    user: touqa

@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     admin_password: SecretStr | None = None
     session_ttl_hours: int = 12
     cookie_secure: bool = False  # set True behind HTTPS
+    # "none" only when the UI is served from a different site than the API (requires COOKIE_SECURE=true).
+    cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     cors_origins: Annotated[list[str], NoDecode] = Field(default_factory=lambda: ["http://localhost:5173"])
 
     # Demo mode: synthetic data, simulated AI, external writes disabled by default.
@@ -89,6 +91,17 @@ class Settings(BaseSettings):
     def _split_csv(cls, v):
         if isinstance(v, str):
             return [s.strip() for s in v.split(",") if s.strip()]
+        return v
+
+    @field_validator("database_url", mode="before")
+    @classmethod
+    def _psycopg_driver(cls, v):
+        # Hosted Postgres (Render, Railway, Heroku) hands out postgres:// or postgresql:// URLs;
+        # route them to the installed psycopg 3 driver.
+        if isinstance(v, str):
+            for prefix in ("postgres://", "postgresql://"):
+                if v.startswith(prefix):
+                    return "postgresql+psycopg://" + v[len(prefix):]
         return v
 
     @property

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { AlertTriangle, Bug, FileText, FlaskConical, Sparkles } from "lucide-react";
 import { api } from "@/lib/api";
 import { useProject } from "@/lib/project";
@@ -26,6 +26,10 @@ export default function Overview() {
   });
   if (!project) return <NoProject />;
   const d = q.data;
+  // Only plot series that have at least one non-zero day.
+  const trendKeys: string[] = d?.trend?.length
+    ? Object.keys(d.trend[0]).filter((k) => k !== "date" && d.trend.some((p: any) => p[k] > 0))
+    : [];
 
   return (
     <>
@@ -64,18 +68,18 @@ export default function Overview() {
             <Card className="lg:col-span-2">
               <CardHeader title="Activity trend" description={`AI generation and submissions over ${days} days`} />
               <CardBody className="h-64">
-                {d.trend?.length ? (
+                {trendKeys.length ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={d.trend} margin={{ left: -20, right: 8, top: 8 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                      <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
+                    <BarChart data={d.trend} margin={{ left: -20, right: 8, top: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" tickFormatter={(v: string) => v.slice(5)} minTickGap={16} />
                       <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-                      <Tooltip {...tooltipStyle} />
-                      {Object.keys(d.trend[0]).filter((k) => k !== "date").map((k, i) => (
-                        <Area key={k} type="monotone" dataKey={k} name={humanize(k)} stroke={PALETTE[i % PALETTE.length]}
-                          fill={PALETTE[i % PALETTE.length]} fillOpacity={0.12} strokeWidth={2} />
+                      <Tooltip {...tooltipStyle} cursor={{ fill: "hsl(var(--muted))" }} />
+                      <Legend wrapperStyle={{ fontSize: 11 }} />
+                      {trendKeys.map((k, i) => (
+                        <Bar key={k} dataKey={k} name={humanize(k)} stackId="a" fill={PALETTE[i % PALETTE.length]} maxBarSize={18} />
                       ))}
-                    </AreaChart>
+                    </BarChart>
                   </ResponsiveContainer>
                 ) : <EmptyState title="No activity in this period" />}
               </CardBody>

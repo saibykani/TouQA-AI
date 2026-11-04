@@ -54,8 +54,8 @@ def login(db: Session, response: Response, email: str, password: str) -> tuple[U
                       expires_at=utcnow() + timedelta(hours=s.session_ttl_hours)))
     db.commit()
     max_age = s.session_ttl_hours * 3600
-    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=s.cookie_secure, samesite="lax", max_age=max_age, path="/")
-    response.set_cookie(CSRF_COOKIE, csrf, httponly=False, secure=s.cookie_secure, samesite="lax", max_age=max_age, path="/")
+    response.set_cookie(SESSION_COOKIE, token, httponly=True, secure=s.cookie_secure or s.cookie_samesite == "none", samesite=s.cookie_samesite, max_age=max_age, path="/")
+    response.set_cookie(CSRF_COOKIE, csrf, httponly=False, secure=s.cookie_secure or s.cookie_samesite == "none", samesite=s.cookie_samesite, max_age=max_age, path="/")
     return user, csrf
 
 
