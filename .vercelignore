@@ -1,0 +1,5 @@
+# Vercel serves only the web interface; the API runs on a container host (see render.yaml).
+backend/
+docs/
+docker-compose.yml
+render.yaml
